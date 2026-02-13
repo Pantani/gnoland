@@ -11,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 
 final class GnoBuiltinDirectoryResolver {
     private GnoBuiltinDirectoryResolver() {
@@ -27,24 +29,42 @@ final class GnoBuiltinDirectoryResolver {
 
     private static PsiDirectory findInProject(Project project, GnoBuiltinImportCatalog.BuiltinImport builtinImport) {
         String basePath = project.getBasePath();
-        if (basePath == null || basePath.isEmpty()) {
-            return null;
-        }
+        for (Path root : candidateRoots(basePath)) {
+            for (String relativePath : builtinImport.projectRelativeDirs()) {
+                Path directoryPath = root.resolve(relativePath);
+                VirtualFile virtualDirectory = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(directoryPath);
+                if (virtualDirectory == null || !virtualDirectory.isDirectory()) {
+                    continue;
+                }
 
-        for (String relativePath : builtinImport.projectRelativeDirs()) {
-            Path directoryPath = Path.of(basePath).resolve(relativePath);
-            VirtualFile virtualDirectory = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(directoryPath);
-            if (virtualDirectory == null || !virtualDirectory.isDirectory()) {
-                continue;
-            }
-
-            PsiDirectory psiDirectory = PsiManager.getInstance(project).findDirectory(virtualDirectory);
-            if (psiDirectory != null) {
-                return psiDirectory;
+                PsiDirectory psiDirectory = PsiManager.getInstance(project).findDirectory(virtualDirectory);
+                if (psiDirectory != null) {
+                    return psiDirectory;
+                }
             }
         }
 
         return null;
+    }
+
+    private static List<Path> candidateRoots(String projectBasePath) {
+        List<Path> roots = new ArrayList<>();
+
+        // Prefer the opened project directory, but also walk parents so this works even when the
+        // project is opened from a nested folder inside the Gno repo.
+        if (projectBasePath != null && !projectBasePath.isEmpty()) {
+            for (Path p = Path.of(projectBasePath.trim()); p != null; p = p.getParent()) {
+                roots.add(p);
+            }
+        }
+
+        // Fall back to GNOROOT if the user has it configured (mirrors how the `gno` tool resolves stdlibs).
+        String gnoRoot = System.getenv("GNOROOT");
+        if (gnoRoot != null && !gnoRoot.isBlank()) {
+            roots.add(Path.of(gnoRoot.trim()));
+        }
+
+        return roots;
     }
 
     private static PsiDirectory ensureStubDirectory(Project project, String packageName) {

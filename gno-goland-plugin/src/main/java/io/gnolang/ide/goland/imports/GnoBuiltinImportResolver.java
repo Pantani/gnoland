@@ -15,6 +15,7 @@ import com.intellij.util.ThreeState;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.nio.file.Path;
 
 public final class GnoBuiltinImportResolver implements GoImportResolver {
     private final GoImportResolver delegate = new DefaultGoImportResolver();
@@ -28,6 +29,37 @@ public final class GnoBuiltinImportResolver implements GoImportResolver {
     public Collection<GoPackage> resolve(String importPath, Project project, Module module, ResolveState state) {
         GnoBuiltinImportCatalog.BuiltinImport builtinImport = GnoBuiltinImportCatalog.findByImportPath(importPath);
         if (builtinImport == null) {
+            // Try resolving via Gno stdlibs (gnovm/stdlibs) when available.
+            if (!GnoStdlibSupport.isEnabled(project, module)) {
+                return Collections.emptyList();
+            }
+
+            Path stdlibRoot = GnoStdlibSupport.findStdlibRoot(project);
+            if (stdlibRoot == null) {
+                return Collections.emptyList();
+            }
+
+            PsiDirectory stdlibDir = GnoStdlibSupport.resolveStdlibDirectory(project, stdlibRoot, importPath);
+            if (stdlibDir != null) {
+                GoPackage resolved = GoPackage.in(stdlibDir, packageNameFromImportPath(importPath));
+                if (resolved != null && resolved.isValid()) {
+                    return List.of(resolved);
+                }
+
+                GoPackage any = packageFromDirectory(stdlibDir);
+                if (any != null && any.isValid()) {
+                    return List.of(any);
+                }
+            }
+
+            // If stdlibs are present and this looks like a stdlib import, don't fall back to Go's stdlib.
+            if (GnoStdlibSupport.shouldStubMissingStdlib(project, module, stdlibRoot, importPath)) {
+                GoPackage synthetic = createSyntheticPackage(project, packageNameFromImportPath(importPath));
+                if (synthetic != null) {
+                    return List.of(synthetic);
+                }
+            }
+
             return Collections.emptyList();
         }
 
@@ -43,6 +75,11 @@ public final class GnoBuiltinImportResolver implements GoImportResolver {
             GoPackage resolved = GoPackage.in(directory, packageNameFromImportPath(builtinImport.canonicalImportPath()));
             if (resolved != null && resolved.isValid()) {
                 return List.of(resolved);
+            }
+
+            GoPackage any = packageFromDirectory(directory);
+            if (any != null && any.isValid()) {
+                return List.of(any);
             }
         }
 
@@ -66,6 +103,15 @@ public final class GnoBuiltinImportResolver implements GoImportResolver {
         }
 
         return GoPackage.of((GoFile) psiFile);
+    }
+
+    private GoPackage packageFromDirectory(PsiDirectory directory) {
+        for (PsiFile file : directory.getFiles()) {
+            if (file instanceof GoFile) {
+                return GoPackage.of((GoFile) file);
+            }
+        }
+        return null;
     }
 
     private String packageNameFromImportPath(String importPath) {

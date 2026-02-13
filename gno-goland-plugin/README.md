@@ -17,10 +17,20 @@ like Go files inside the IDE.
   - `gno.land/p/nt/ufmt`
   - `gno.land/p/nt/avl`
   - `gno.land/p/nt/testutils`
+- Resolves Gno stdlib imports (from `gnovm/stdlibs`, e.g. `chain`, `crypto/sha256`, `encoding/json`, etc.) when available.
 - Also accepts `gno.land/p/demo/{ufmt,avl,testutils}` import paths.
 - Accepts short aliases (`ufmt`, `avl`, `testutils`) as IDE-only compatibility.
 - Treats `realm`, `address`, and `cross` as built-in language symbols (no import).
 - Adds a `Gno` Run Configuration to run `gno` commands (and a context action for `*.gno` files).
+
+## Stdlib Resolution
+
+For full stdlib navigation and completion, the plugin needs access to the Gno stdlibs folder (`gnovm/stdlibs`).
+
+Supported locations:
+
+- Open a checkout of `github.com/gnolang/gno` (or any nested folder within it) as the GoLand project.
+- Or set `GNOROOT` in the GoLand process environment to a checkout of `github.com/gnolang/gno`.
 
 ## Build
 

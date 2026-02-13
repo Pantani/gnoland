@@ -25,6 +25,15 @@ class GnoHighlightInfoFilter : HighlightInfoFilter {
 
     private fun isKnownResolveFalsePositive(highlightInfo: HighlightInfo): Boolean {
         val message = highlightInfo.description?.lowercase() ?: return false
+
+        // Gno has a few predeclared identifiers that Go doesn't know about. Instead of forcing users
+        // to maintain stubs in each project, just suppress the IDE error diagnostics for them.
+        if (GNO_PREDECLARED_IDENTIFIERS.any { id -> message.contains(id) } &&
+            GNO_PREDECLARED_ERROR_SNIPPETS.any(message::contains)
+        ) {
+            return true
+        }
+
         return RESOLVE_ERROR_SNIPPETS.any(message::contains)
     }
 
@@ -34,6 +43,17 @@ class GnoHighlightInfoFilter : HighlightInfoFilter {
             "unresolved reference",
             "cannot find package",
             "unknown package",
+        )
+
+        private val GNO_PREDECLARED_IDENTIFIERS = listOf(
+            "realm",
+            "address",
+            "cross",
+        )
+
+        private val GNO_PREDECLARED_ERROR_SNIPPETS = listOf(
+            "unresolved type",
+            "undefined",
         )
     }
 }

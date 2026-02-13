@@ -12,6 +12,7 @@
 	        <li>Treats <code>gno.mod</code> as <code>go.mod</code> for native module-file editing support.</li>
 	        <li>Reduces false-positive warnings and inspections for Gno sources.</li>
 	        <li>Adds import support for <code>std</code>, <code>gno.land/p/nt/*</code> and <code>gno.land/p/demo/*</code> variants of <code>ufmt</code>, <code>avl</code>, and <code>testutils</code>.</li>
+	        <li>Resolves Gno stdlib imports from <code>gnovm/stdlibs</code> (via project checkout or <code>GNOROOT</code>).</li>
 	        <li>Treats <code>realm</code>, <code>address</code>, and <code>cross</code> as built-in language symbols (no import).</li>
 	        <li>Adds a <code>Gno</code> Run Configuration for running <code>gno</code> CLI commands.</li>
 	      </ul>
@@ -24,6 +25,7 @@
   <extensions defaultExtensionNs="com.intellij">
     <fileTypeOverrider implementation="io.gnolang.ide.goland.GnoFileTypeOverrider"/>
     <daemon.highlightInfoFilter implementation="io.gnolang.ide.goland.GnoHighlightInfoFilter"/>
+    <annotator language="go" implementationClass="io.gnolang.ide.goland.GnoPredeclaredAnnotator"/>
     <lang.inspectionSuppressor
         language="go"
         implementationClass="io.gnolang.ide.goland.GnoInspectionSuppressor"/>
