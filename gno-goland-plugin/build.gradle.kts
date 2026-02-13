@@ -35,6 +35,8 @@ dependencies {
 }
 
 intellijPlatform {
+    buildSearchableOptions = false
+
     pluginConfiguration {
         ideaVersion {
             sinceBuild = "243"
@@ -61,6 +63,8 @@ tasks {
     }
 
     withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = "21"
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+        }
     }
 }
