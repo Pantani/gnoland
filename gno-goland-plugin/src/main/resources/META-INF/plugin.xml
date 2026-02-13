@@ -1,0 +1,41 @@
+<idea-plugin>
+  <id>io.gnolang.ide.gno.goland</id>
+  <name>Gno for GoLand</name>
+  <vendor url="https://gno.land">gno.land</vendor>
+
+  <description>
+    <![CDATA[
+      Baseline Gno support for GoLand.
+	      <br/>
+	      <ul>
+	        <li>Treats <code>.gno</code> files as Go files.</li>
+	        <li>Treats <code>gno.mod</code> as <code>go.mod</code> for native module-file editing support.</li>
+	        <li>Reduces false-positive warnings and inspections for Gno sources.</li>
+	        <li>Adds import support for <code>std</code>, <code>gno.land/p/nt/*</code> and <code>gno.land/p/demo/*</code> variants of <code>ufmt</code>, <code>avl</code>, and <code>testutils</code>.</li>
+	        <li>Treats <code>realm</code>, <code>address</code>, and <code>cross</code> as built-in language symbols (no import).</li>
+	        <li>Adds a <code>Gno</code> Run Configuration for running <code>gno</code> CLI commands.</li>
+	      </ul>
+	    ]]>
+	  </description>
+
+  <depends>com.intellij.modules.goland</depends>
+  <depends>org.jetbrains.plugins.go</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <fileTypeOverrider implementation="io.gnolang.ide.goland.GnoFileTypeOverrider"/>
+    <daemon.highlightInfoFilter implementation="io.gnolang.ide.goland.GnoHighlightInfoFilter"/>
+    <lang.inspectionSuppressor
+        language="go"
+        implementationClass="io.gnolang.ide.goland.GnoInspectionSuppressor"/>
+    <configurationType implementation="io.gnolang.ide.goland.run.GnoRunConfigurationType"/>
+    <runConfigurationProducer implementation="io.gnolang.ide.goland.run.GnoRunConfigurationProducer"/>
+  </extensions>
+
+  <extensions defaultExtensionNs="com.goide">
+    <importResolver
+        id="gno-builtins"
+        implementation="io.gnolang.ide.goland.imports.GnoBuiltinImportResolver"
+        order="before default"/>
+    <importPathsProvider implementation="io.gnolang.ide.goland.imports.GnoBuiltinImportPathsProvider"/>
+  </extensions>
+</idea-plugin>
