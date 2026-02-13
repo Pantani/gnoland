@@ -5,6 +5,7 @@ import com.intellij.openapi.module.Module;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.util.PairProcessor;
+import java.util.Map;
 
 public final class GnoBuiltinImportPathsProvider implements GoImportPathsProvider {
     @Override
@@ -22,6 +23,12 @@ public final class GnoBuiltinImportPathsProvider implements GoImportPathsProvide
             }
 
             if (!processor.process(builtinImport.displayImportPath(), directory)) {
+                return;
+            }
+        }
+
+        for (Map.Entry<String, PsiDirectory> entry : GnoWorkspacePackageIndex.all(module.getProject()).entrySet()) {
+            if (!processor.process(entry.getKey(), entry.getValue())) {
                 return;
             }
         }

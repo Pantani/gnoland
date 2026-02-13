@@ -27,31 +27,40 @@ public final class GnoBuiltinImportResolver implements GoImportResolver {
     @Override
     public Collection<GoPackage> resolve(String importPath, Project project, Module module, ResolveState state) {
         GnoBuiltinImportCatalog.BuiltinImport builtinImport = GnoBuiltinImportCatalog.findByImportPath(importPath);
-        if (builtinImport == null) {
-            return Collections.emptyList();
-        }
-
-        if (module != null) {
-            Collection<GoPackage> delegated = delegate.resolve(builtinImport.canonicalImportPath(), project, module, state);
-            if (!delegated.isEmpty()) {
-                return delegated;
+        if (builtinImport != null) {
+            if (module != null) {
+                Collection<GoPackage> delegated = delegate.resolve(builtinImport.canonicalImportPath(), project, module, state);
+                if (!delegated.isEmpty()) {
+                    return delegated;
+                }
             }
+
+            PsiDirectory directory = GnoBuiltinDirectoryResolver.resolve(project, builtinImport);
+            if (directory != null) {
+                GoPackage resolved = GoPackage.in(directory, packageNameFromImportPath(builtinImport.canonicalImportPath()));
+                if (resolved != null && resolved.isValid()) {
+                    return List.of(resolved);
+                }
+            }
+
+            GoPackage synthetic = createSyntheticPackage(project, packageNameFromImportPath(builtinImport.canonicalImportPath()));
+            if (synthetic == null) {
+                return Collections.emptyList();
+            }
+
+            return List.of(synthetic);
         }
 
-        PsiDirectory directory = GnoBuiltinDirectoryResolver.resolve(project, builtinImport);
-        if (directory != null) {
-            GoPackage resolved = GoPackage.in(directory, packageNameFromImportPath(builtinImport.canonicalImportPath()));
+        // Workspace/local packages (e.g. via gnomod.toml or legacy gno.mod).
+        PsiDirectory workspaceDir = GnoWorkspacePackageIndex.resolve(project, importPath);
+        if (workspaceDir != null) {
+            GoPackage resolved = GoPackage.in(workspaceDir, packageNameFromImportPath(importPath));
             if (resolved != null && resolved.isValid()) {
                 return List.of(resolved);
             }
         }
 
-        GoPackage synthetic = createSyntheticPackage(project, packageNameFromImportPath(builtinImport.canonicalImportPath()));
-        if (synthetic == null) {
-            return Collections.emptyList();
-        }
-
-        return List.of(synthetic);
+        return Collections.emptyList();
     }
 
     private GoPackage createSyntheticPackage(Project project, String packageName) {
