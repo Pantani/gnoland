@@ -56,9 +56,9 @@ final class GnoStdlibSupport {
         try {
             GlobalSearchScope scope = GlobalSearchScope.moduleScope(module);
             boolean looksLikeGno =
-                !FilenameIndex.getAllFilesByExt(project, "gno", scope).isEmpty()
-                    || !FilenameIndex.getVirtualFilesByName(project, "gnomod.toml", scope).isEmpty()
-                    || !FilenameIndex.getVirtualFilesByName(project, "gno.mod", scope).isEmpty();
+                !FilenameIndex.getVirtualFilesByName("gnomod.toml", scope).isEmpty()
+                    || !FilenameIndex.getVirtualFilesByName("gno.mod", scope).isEmpty()
+                    || hasGnoFiles(project, scope);
             if (looksLikeGno) {
                 module.putUserData(IS_GNO_MODULE, Boolean.TRUE);
                 return true;
@@ -68,6 +68,29 @@ final class GnoStdlibSupport {
         }
 
         return false;
+    }
+
+    private static boolean hasGnoFiles(Project project, GlobalSearchScope scope) {
+        try {
+            // More thorough check: process all filenames to find any .gno file
+            boolean[] found = {false};
+            FilenameIndex.processAllFileNames(
+                filename -> {
+                    if (filename.endsWith(".gno")) {
+                        if (!FilenameIndex.getVirtualFilesByName(filename, scope).isEmpty()) {
+                            found[0] = true;
+                            return false; // Stop processing
+                        }
+                    }
+                    return true; // Continue processing
+                },
+                scope,
+                null
+            );
+            return found[0];
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     static Path findStdlibRoot(Project project) {
