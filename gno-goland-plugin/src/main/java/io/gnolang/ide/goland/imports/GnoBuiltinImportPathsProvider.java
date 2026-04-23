@@ -33,12 +33,22 @@ public final class GnoBuiltinImportPathsProvider implements GoImportPathsProvide
         }
 
         Path stdlibRoot = GnoStdlibSupport.findStdlibRoot(module.getProject());
-        if (stdlibRoot == null) {
-            return;
+        if (stdlibRoot != null) {
+            for (String importPath : GnoStdlibSupport.listAvailableStdlibImportPaths(stdlibRoot)) {
+                PsiDirectory directory = GnoStdlibSupport.resolveStdlibDirectory(module.getProject(), stdlibRoot, importPath);
+                if (directory == null) {
+                    continue;
+                }
+
+                if (!processor.process(importPath, directory)) {
+                    return;
+                }
+            }
         }
 
-        for (String importPath : GnoStdlibSupport.listAvailableStdlibImportPaths(stdlibRoot)) {
-            PsiDirectory directory = GnoStdlibSupport.resolveStdlibDirectory(module.getProject(), stdlibRoot, importPath);
+        GnoRemotePackageCacheService remoteCacheService = GnoRemotePackageCacheService.getInstance(module.getProject());
+        for (String importPath : remoteCacheService.listCachedImportPaths()) {
+            PsiDirectory directory = remoteCacheService.resolveCachedDirectory(importPath);
             if (directory == null) {
                 continue;
             }

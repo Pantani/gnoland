@@ -29,35 +29,14 @@ public final class GnoBuiltinImportResolver implements GoImportResolver {
     public Collection<GoPackage> resolve(String importPath, Project project, Module module, ResolveState state) {
         GnoBuiltinImportCatalog.BuiltinImport builtinImport = GnoBuiltinImportCatalog.findByImportPath(importPath);
         if (builtinImport == null) {
-            // Try resolving via Gno stdlibs (gnovm/stdlibs) when available.
-            if (!GnoStdlibSupport.isEnabled(project, module)) {
-                return Collections.emptyList();
+            Collection<GoPackage> stdlibResolution = resolveFromStdlib(importPath, project, module);
+            if (!stdlibResolution.isEmpty()) {
+                return stdlibResolution;
             }
 
-            Path stdlibRoot = GnoStdlibSupport.findStdlibRoot(project);
-            if (stdlibRoot == null) {
-                return Collections.emptyList();
-            }
-
-            PsiDirectory stdlibDir = GnoStdlibSupport.resolveStdlibDirectory(project, stdlibRoot, importPath);
-            if (stdlibDir != null) {
-                GoPackage resolved = GoPackage.in(stdlibDir, packageNameFromImportPath(importPath));
-                if (resolved != null && resolved.isValid()) {
-                    return List.of(resolved);
-                }
-
-                GoPackage any = packageFromDirectory(stdlibDir);
-                if (any != null && any.isValid()) {
-                    return List.of(any);
-                }
-            }
-
-            // If stdlibs are present and this looks like a stdlib import, don't fall back to Go's stdlib.
-            if (GnoStdlibSupport.shouldStubMissingStdlib(project, module, stdlibRoot, importPath)) {
-                GoPackage synthetic = createSyntheticPackage(project, packageNameFromImportPath(importPath));
-                if (synthetic != null) {
-                    return List.of(synthetic);
-                }
+            Collection<GoPackage> remoteResolution = resolveFromRemoteCache(importPath, project, module);
+            if (!remoteResolution.isEmpty()) {
+                return remoteResolution;
             }
 
             return Collections.emptyList();
@@ -70,7 +49,25 @@ public final class GnoBuiltinImportResolver implements GoImportResolver {
             }
         }
 
-        PsiDirectory directory = GnoBuiltinDirectoryResolver.resolve(project, builtinImport);
+        PsiDirectory directory = GnoBuiltinDirectoryResolver.resolveProjectDirectory(project, builtinImport);
+        if (directory != null) {
+            GoPackage resolved = GoPackage.in(directory, packageNameFromImportPath(builtinImport.canonicalImportPath()));
+            if (resolved != null && resolved.isValid()) {
+                return List.of(resolved);
+            }
+
+            GoPackage any = packageFromDirectory(directory);
+            if (any != null && any.isValid()) {
+                return List.of(any);
+            }
+        }
+
+        Collection<GoPackage> remoteResolution = resolveFromRemoteCache(builtinImport.canonicalImportPath(), project, module);
+        if (!remoteResolution.isEmpty()) {
+            return remoteResolution;
+        }
+
+        directory = GnoBuiltinDirectoryResolver.resolve(project, builtinImport);
         if (directory != null) {
             GoPackage resolved = GoPackage.in(directory, packageNameFromImportPath(builtinImport.canonicalImportPath()));
             if (resolved != null && resolved.isValid()) {
@@ -89,6 +86,74 @@ public final class GnoBuiltinImportResolver implements GoImportResolver {
         }
 
         return List.of(synthetic);
+    }
+
+    private Collection<GoPackage> resolveFromStdlib(String importPath, Project project, Module module) {
+        // Try resolving via Gno stdlibs (gnovm/stdlibs) when available.
+        if (!GnoStdlibSupport.isEnabled(project, module)) {
+            return Collections.emptyList();
+        }
+
+        Path stdlibRoot = GnoStdlibSupport.findStdlibRoot(project);
+        if (stdlibRoot == null) {
+            return Collections.emptyList();
+        }
+
+        PsiDirectory stdlibDir = GnoStdlibSupport.resolveStdlibDirectory(project, stdlibRoot, importPath);
+        if (stdlibDir != null) {
+            GoPackage resolved = GoPackage.in(stdlibDir, packageNameFromImportPath(importPath));
+            if (resolved != null && resolved.isValid()) {
+                return List.of(resolved);
+            }
+
+            GoPackage any = packageFromDirectory(stdlibDir);
+            if (any != null && any.isValid()) {
+                return List.of(any);
+            }
+        }
+
+        // If stdlibs are present and this looks like a stdlib import, don't fall back to Go's stdlib.
+        if (GnoStdlibSupport.shouldStubMissingStdlib(project, module, stdlibRoot, importPath)) {
+            GoPackage synthetic = createSyntheticPackage(project, packageNameFromImportPath(importPath));
+            if (synthetic != null) {
+                return List.of(synthetic);
+            }
+        }
+
+        return Collections.emptyList();
+    }
+
+    private Collection<GoPackage> resolveFromRemoteCache(String importPath, Project project, Module module) {
+        if (module != null && !GnoStdlibSupport.isEnabled(project, module)) {
+            return Collections.emptyList();
+        }
+
+        GnoRemotePackageCacheService remoteCacheService = GnoRemotePackageCacheService.getInstance(project);
+        if (remoteCacheService == null || !remoteCacheService.isFetchableImportPath(importPath)) {
+            return Collections.emptyList();
+        }
+
+        PsiDirectory cachedDirectory = remoteCacheService.resolveCachedDirectory(importPath);
+        if (cachedDirectory == null) {
+            remoteCacheService.ensurePackageFetched(importPath);
+            GoPackage synthetic = createSyntheticPackage(project, packageNameFromImportPath(importPath));
+            if (synthetic != null) {
+                return List.of(synthetic);
+            }
+            return Collections.emptyList();
+        }
+
+        GoPackage resolved = GoPackage.in(cachedDirectory, packageNameFromImportPath(importPath));
+        if (resolved != null && resolved.isValid()) {
+            return List.of(resolved);
+        }
+
+        GoPackage any = packageFromDirectory(cachedDirectory);
+        if (any != null && any.isValid()) {
+            return List.of(any);
+        }
+
+        return Collections.emptyList();
     }
 
     private GoPackage createSyntheticPackage(Project project, String packageName) {

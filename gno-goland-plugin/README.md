@@ -17,6 +17,7 @@ like Go files inside the IDE.
   - `gno.land/p/nt/ufmt`
   - `gno.land/p/nt/avl`
   - `gno.land/p/nt/testutils`
+- Downloads and caches remote `gno.land/...` packages on demand for import resolution/completion.
 - Resolves Gno stdlib imports (from `gnovm/stdlibs`, e.g. `chain`, `crypto/sha256`, `encoding/json`, etc.) when available.
 - Also accepts `gno.land/p/demo/{ufmt,avl,testutils}` import paths.
 - Accepts short aliases (`ufmt`, `avl`, `testutils`) as IDE-only compatibility.

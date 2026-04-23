@@ -19,7 +19,7 @@ final class GnoBuiltinDirectoryResolver {
     }
 
     static PsiDirectory resolve(Project project, GnoBuiltinImportCatalog.BuiltinImport builtinImport) {
-        PsiDirectory projectDirectory = findInProject(project, builtinImport);
+        PsiDirectory projectDirectory = resolveProjectDirectory(project, builtinImport);
         if (projectDirectory != null) {
             return projectDirectory;
         }
@@ -27,7 +27,7 @@ final class GnoBuiltinDirectoryResolver {
         return ensureStubDirectory(project, packageNameFromImportPath(builtinImport.canonicalImportPath()));
     }
 
-    private static PsiDirectory findInProject(Project project, GnoBuiltinImportCatalog.BuiltinImport builtinImport) {
+    static PsiDirectory resolveProjectDirectory(Project project, GnoBuiltinImportCatalog.BuiltinImport builtinImport) {
         String basePath = project.getBasePath();
         for (Path root : candidateRoots(basePath)) {
             for (String relativePath : builtinImport.projectRelativeDirs()) {
